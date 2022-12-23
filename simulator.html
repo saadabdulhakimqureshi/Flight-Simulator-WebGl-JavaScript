@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link href="https://fonts.googleapis.com/css2?family=Lato&display=swap"
+          rel="stylesheet"
+    > 
+    <style>
+      body {
+        background: radial-gradient(circle at 10% 20%,
+                                  rgb(186, 190, 245) 0%,
+                                  rgb(192, 192, 245) 33.1%,
+                                  rgb(218, 203, 246) 90%
+        );
+        color: #333;
+        padding-left: 10px;
+        margin: 0;
+      }
+
+      #gl-canvas {
+        border: 1px solid #000000;
+      }
+
+      li {
+        margin: 2rem;
+      }
+
+      .container {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr; 
+        grid-template-rows: 1fr 1fr 1fr; 
+        gap: 0px 0px; 
+        grid-template-areas: 
+          "canvas list list"
+          "canvas list list"
+          "canvas list list"; 
+      }
+
+      .gridSpec {
+        padding: 10px;
+        border-radius: 0.5em;
+        margin: auto;
+        flex: 1 1 200px;
+      }
+
+      .canvas {
+        grid-area: canvas;
+        font-family: 'Lato', sans-serif;
+      }
+
+      .list {
+        grid-area: list;
+        font-family: 'Lato', sans-serif;
+      }
+
+      .styled-table {
+        border-collapse: collapse;
+        margin: 25px 0;
+        font-size: 0.5em;
+        font-family: sans-serif;
+        min-width: 150px;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+      }
+
+      .styled-table thead tr {
+        background-color: #7D26CD;
+        color: #ffffff;
+        text-align: left;
+      }
+
+      .styled-table th,
+      .styled-table td {
+        padding: 12px 15px;
+      }
+
+      .styled-table tbody tr {
+        border-bottom: 1px solid #dddddd;
+      }
+
+      .styled-table tbody tr:nth-of-type(even) {
+        background-color: #f3f3f3;
+      }
+
+      .styled-table tbody tr:last-of-type {
+        border-bottom: 2px solid #7D26CD;
+      }
+
+      .styled-table tbody tr.active-row {
+        font-weight: bold;
+        color: #7D26CD;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      .row {
+        display: flex;
+      }
+
+      .column {
+        flex: 50%;
+        padding: 5px;
+      }
+    </style>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+    <title>Flight Simulator</title>
+
+    <!-- 
+      vertex shader
+      Reference: https://www.interactivecomputergraphics.com/Code/06/
+      Reference: view-source:https://www.interactivecomputergraphics.com/Code/06/shadedSphere2.html
+      Reference: view-source:https://www.interactivecomputergraphics.com/Code/06/shadedSphere3.html
+    -->
+    <script id="vertex-shader" type="x-shader/x-vertex">
+      #version 300 es
+      precision mediump float;
+      
+      // inputs
+      in vec4 vPosition;
+      in vec4 normVec;
+
+      // unified memory
+      uniform mat4 mvMat;
+      uniform mat4 projMat;
+      uniform mat3 normMat;
+      
+      // output
+      out vec3 norm;
+      out vec3 position;
+
+      void main() {
+        norm = normalize(normMat * normVec.xyz);
+        gl_Position = projMat * mvMat * vPosition;
+        position = vPosition.xyz;
+        gl_PointSize = 1.0;
+      }
+    </script>
+
+    <!--
+      fragment shader 
+      Reference: https://www.interactivecomputergraphics.com/Code/06/
+      Reference: view-source:https://www.interactivecomputergraphics.com/Code/06/shadedSphere2.html
+      Reference: view-source:https://www.interactivecomputergraphics.com/Code/06/shadedSphere3.html
+    -->
+    <script id="fragment-shader" type="x-shader/x-fragment">
+      #version 300 es
+      precision mediump float;
+      
+      // input
+      in vec3 norm;
+      in vec3 position;
+      
+      // unified memory
+      uniform vec4 lookPos;
+
+      // output
+      out vec4 fragColor;
+      
+      // attribute of frag. shader
+      vec3 pointLightPos = vec3(0.0, 0.0, -1.0); // face light towards the scene 
+      
+      // varied terrain implementation
+      vec4 colorTerrain(float altitude) {
+        if (altitude <= 0.0) {
+          // aqua blue
+          return vec4(5.0 / 255.0, 195.0 / 255.0, 221.0 / 255.0, 1.0);
+        } else if (altitude > 0.0 && altitude <= 0.7) {
+          // highland green
+          return vec4(34.0 / 255.0, 139.0 / 255.0, 34.0 / 255.0, 1.0);
+        } else if (altitude > 0.7 && altitude <= 1.0) {
+          // dirt brown
+          return vec4(131.0 / 255.0, 101.0 / 255.0, 57.0 / 255.0, 1.0);
+        } else if (altitude > 1.0 ) {
+          // snow white
+          return vec4(255.0 / 255.0, 250.0 / 255.0, 250.0 / 255.0, 1.0);
+        }
+      }
+
+      // get spec light
+      vec3 getSpecHighlight(vec3 vpn, vec3 reflection, vec4 vColor) {
+        float mag = max(dot(vpn, reflection), 0.0);
+        return pow(mag, 1.0) * vColor.xyz;
+      }
+
+      // get diff. light
+      vec3 getDiffusion(vec3 normal, vec3 lightDir, vec4 vColor) {
+        float diffusion = max(dot(normal, lightDir), 0.0);
+        return diffusion * vColor.xyz;
+      }
+
+      // compute the final color of the vertex
+      vec3 lighting(vec3 light, vec3 normal, vec3 vpn) {
+        // get the direction of the light's rays 
+        vec3 lightPath = normalize(light);       
+
+        // calculate the incident reflection
+        vec3 reflection = reflect(-lightPath, normal);
+
+        // color the terrain by the altitude - alternative to doing it all on the CPU
+        vec4 vColor = colorTerrain(position.y);
+        
+        // evaluate the ambient light in the scene
+        vec3 ambientLight = vColor.xyz * 0.10;
+
+        // get diffused light
+        vec3 diffuseLight = getDiffusion(normal, lightPath, vColor);
+
+        // get spectral highlight
+        vec3 specularLight = getSpecHighlight(vpn, reflection, vColor);
+        
+        // combine to get final color of the point
+        return (ambientLight + diffuseLight + specularLight);
+      }
+
+      void main() {
+        // movement vector
+        vec3 vpn = normalize(lookPos.xyz - position);
+        
+        // result of shading
+        vec3 finalColor = lighting(pointLightPos, norm, vpn);    
+        
+        // pass the color through
+        fragColor = vec4(finalColor, 1.0);
+      } 
+    </script>
+
+    <script src="http://interactivecomputergraphics.com/8E/Code%20update/Common/initShadersES6.js"></script>
+    <script src="MVES6.js"></script>
+    <script type="text/javascript" src="settings.js"></script>
+    <script type="text/javascript" src="keymap.js"></script>
+    <script type="text/javascript" src="perlin.js"></script>
+    <script type="text/javascript" src="terrain.js"></script>
+    <script type="text/javascript" src="view.js"></script>
+    <script type="text/javascript" src="simulator.js"></script>
+  </head>
+
+  <body>
+    <!-- main container -->
+    <div class="container">
+        <!--The list of instructions-->
+        <div class="list">
+          <ul>
+            <li>
+              The flight simulator consists of the following parts:
+              <ol>
+                <li>
+                  Terrain generation - using the perlin noise utility as demonstrated
+                  in the recitation, the required height map is generated as required.
+                  Moreover, once a particular patch of terrain is out-traveled, a new 
+                  patch is loaded as required.
+                </li>
+                <li>
+                  Flight and View dynamics - the following key-mappings are in place:
+                  <div class="row">
+                    <div class="column">
+                      <table class="styled-table">
+                        <thead>
+                            <tr>
+                              <th>Action</th>
+                              <th>Key(s)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                              <td>Pitch Down</td>
+                              <td>W</td>
+                            </tr>
+                            <tr>
+                              <td>Pitch Up</td>
+                              <td>S</td>
+                            </tr>
+                            <tr>
+                              <td>Yaw Left</td>
+                              <td>A</td>
+                            </tr>
+                            <tr>
+                              <td>Yaw Right</td>
+                              <td>D</td>
+                            </tr>
+                            <tr>
+                              <td>Roll Left</td>
+                              <td>Q</td>
+                            </tr>
+                            <tr>
+                              <td>Roll Right</td>
+                              <td>E</td>
+                            </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <div class="column">
+                      <table class="styled-table">
+                        <thead>
+                          <tr>
+                            <th>Action</th>
+                            <th>Key(s)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                              <td>Increase Left</td>
+                              <td>1</td>
+                            </tr>
+                            <tr>
+                              <td>Decrease Left</td>
+                              <td>!</td>
+                            </tr>
+                            <tr>
+                              <td>Increase Right</td>
+                              <td>2</td>
+                            </tr>
+                            <tr>
+                              <td>Decrease Right</td>
+                              <td>@</td>
+                            </tr>
+                            <tr>
+                              <td>Increase Above</td>
+                              <td>3</td>
+                            </tr>
+                            <tr>
+                              <td>Decrease Above</td>
+                              <td>#</td>
+                            </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <div class="column">
+                      <table class="styled-table">
+                        <thead>
+                          <tr>
+                            <th>Action</th>
+                            <th>Key(s)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                              <td>Increase Bottom</td>
+                              <td>4</td>
+                            </tr>
+                            <tr>
+                              <td>Decrease Bottom</td>
+                              <td>$</td>
+                            </tr>
+                            <tr>
+                              <td>Increase Near</td>
+                              <td>5</td>
+                            </tr>
+                            <tr>
+                              <td>Decrease Near</td>
+                              <td>%</td>
+                            </tr>
+                            <tr>
+                              <td>Increase Far</td>
+                              <td>6</td>
+                            </tr>
+                            <tr>
+                              <td>Decrease Far</td>
+                              <td>^</td>
+                            </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <div class="column">
+                      <table class="styled-table">
+                        <thead>
+                          <tr>
+                            <th>Action</th>
+                            <th>Key(s)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                              <td>Increase Speed</td>
+                              <td>↑</td>
+                            </tr>
+                            <tr>
+                              <td>Decrease Speed</td>
+                              <td>↓</td>
+                            </tr>
+                            <tr>
+                              <td>Exit</td>
+                              <td>ESC</td>
+                            </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </li>
+                <li>
+                  All angles are restricted to the [-90, +90] range. The 
+                  speed is restricted to [0, 100] while the minimum altitude
+                  is set to y = 7 and the maximum altitude is set to y = 30. 
+                </li>
+              </ol>
+            </li>
+            <li>
+              Given that specific shading requirements were removed thus, the
+              chosen, and implemented scheme is Phong shading (we tried flat
+              shading but were unsuccessful in our implementation). Nonetheless,
+              given that there is no set requirement thus, whatever works!
+            </li>
+            <li>
+              Observation: there is a trade-of between good performance and and
+              fidelity of the terrain. If a greater number of points are sampled
+              over the x-z plane, the terrain looks more natural (smoother) but
+              performance is downgraded and vice-versa. Feel free to modify the
+              values of the variable, interval (terrain.js::78), to see this effect.
+            </li>
+          </ul>
+        </div>
+        <!-- canvas and header -->
+        <div class="canvas">
+          <h1>
+            HU TOP GUN
+          </h1>
+          <canvas id="gl-canvas"
+                  width="600"
+                  height="600"
+          > </canvas>
+      </div>
+    </div>
+  </body>
+</html>
