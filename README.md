@@ -3,6 +3,14 @@ We have created a basic flight simulator using only WEB-GL.
 
 Course: CS 440 Computer Graphics
 
+## Implementation
+
+API Renderer: WebGL(JavaScript)
+
+## Requirements
+
+Latest browsers(HTML5)
+
 ## Controls
 
 Use WASD to move the camera.
@@ -10,10 +18,6 @@ Use WASD to move the camera.
 Use QD to role the camera.
 
 View Details.PNG to view further controls.
-
-## Screens
-
-Open Snapshots directory to view screens.
 
 ## Code
 
@@ -27,10 +31,6 @@ The model view matrix is manipulated to create teh illusion of moving flight.
 
 Open simulator.html in code directory to view the simulator.
 
-## Implementation
+## Screens
 
-API Renderer: WebGL(JavaScript)
-
-## Requirements
-
-Latest browsers(HTML5)
+![Alt text](/Snapshots/Flight Simulator.PNG "Flight Simulator")
