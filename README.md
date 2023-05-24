@@ -27,6 +27,10 @@ The model view matrix is manipulated to create teh illusion of moving flight.
 
 Open simulator.html in code directory to view the simulator.
 
+## Implementation
+
+API Renderer: WebGL(JavaScript)
+
 ## Requirements
 
 Latest browsers(HTML5)
