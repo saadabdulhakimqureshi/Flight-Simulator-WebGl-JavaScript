@@ -1,8 +1,32 @@
 # Flight-Simulator-WEBGL
-We have created a basic flight simulator using only WEB-GL. We have created this by generating a terrain and manipulating the model view matrix in order to create the illusion of moving flight. 
+We have created a basic flight simulator using only WEB-GL. 
 
-# Controls:
+Course: CS 440 Computer Graphics
+
+## Controls
+
 Use WASD to move the camera.
 
-# Requirements:
-Just run simulator.html.
+Use QD to role the camera.
+
+View Details.PNG to view further controls.
+
+## Screens
+
+Open Snapshots directory to view screens.
+
+## Code
+
+View Code directory for javascript files.
+
+The terrain is generated using perlin noise algorithm.
+
+The model view matrix is manipulated to create teh illusion of moving flight.
+
+## Run 
+
+Open simulator.html in code directory to view the simulator.
+
+## Requirements
+
+Latest browsers(HTML5)
