@@ -33,4 +33,4 @@ Open simulator.html in code directory to view the simulator.
 
 ## Screens
 
-![Alt text](/Snapshots/Flight Simulator.PNG "Flight Simulator")
+![Alt text](/Snapshots/Terrain.PNG "Flight Simulator")
