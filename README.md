@@ -1,4 +1,4 @@
-# Flight-Simulator-WEBGL
+# Flight-Simulator-WebGL
 We have created a basic flight simulator using only WEB-GL. 
 
 Course: CS 440 Computer Graphics
